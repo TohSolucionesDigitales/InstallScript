@@ -69,9 +69,7 @@ sudo yum update
 
 
 
-sudo dnf install wget
 
-wget --version
 
 #--------------------------------------------------
 # Install PostgreSQL Server

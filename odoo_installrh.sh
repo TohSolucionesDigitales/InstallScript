@@ -140,12 +140,10 @@ sudo chown $OE_USER:$OE_USER /var/log/$OE_USER
 # Install ODOO
 #--------------------------------------------------
 echo -e "\n==== Installing ODOO Server ===="
-#sudo git clone --depth 1 --branch $OE_VERSION https://www.github.com/odoo/odoo $OE_HOME_EXT/
-sudo mkdir /odoo
-sudo wget https://nightly.odoo.com/16.0/nightly/src/odoo_16.0.latest.tar.gz -O /odoo/odoo.tar.gz
-sudo tar -xvzf /odoo/odoo.tar.gz --strip 1 -C /odoo/
-sudo chown -R odoo: /odoo
-sudo pip3 install -r /odoo/requirements.txt
+
+git clone https://www.github.com/odoo/odoo --depth 1 --branch 16.0 --single-branch.
+
+
 
 if [ $IS_ENTERPRISE = "True" ]; then
     # Odoo Enterprise install!

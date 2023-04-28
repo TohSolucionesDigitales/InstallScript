@@ -67,8 +67,10 @@ echo -e "\n---- Update Server ----"
    
 sudo yum update
 
-
-
+#--------------------------------------------------
+# Install Git
+#--------------------------------------------------
+sudo yum install git
 
 
 #--------------------------------------------------
@@ -83,7 +85,8 @@ if [ $INSTALL_POSTGRESQL_FOURTEEN = "True" ]; then
     sudo yum install postgresql-14
 else
     echo -e "\n---- Installing the default postgreSQL version based on Linux version ----"
-    sudo yum install postgresql postgresql-server-dev-all -y
+    
+    sudo yum install postgresql postgresql-server postgresql-devel postgresql-contrib
 fi
 
 
@@ -141,8 +144,8 @@ sudo chown $OE_USER:$OE_USER /var/log/$OE_USER
 #--------------------------------------------------
 echo -e "\n==== Installing ODOO Server ===="
 
-git clone https://www.github.com/odoo/odoo --depth 1 --branch 16.0 --single-branch.
 
+sudo git clone --depth 1 --branch $OE_VERSION https://www.github.com/odoo/odoo $OE_HOME_EXT/
 
 
 if [ $IS_ENTERPRISE = "True" ]; then

@@ -24,7 +24,7 @@ INSTALL_WKHTMLTOPDF="True"
 OE_PORT="8069"
 # Choose the Odoo version which you want to install. For example: 16.0, 15.0, 14.0 or saas-22. When using 'master' the master version will be installed.
 # IMPORTANT! This script contains extra libraries that are specifically needed for Odoo 16.0
-OE_VERSION="16.0"
+OE_VERSION="17.0"
 # Set this to True if you want to install the Odoo enterprise version!
 IS_ENTERPRISE="False"
 # Installs postgreSQL V14 instead of defaults (e.g V12 for Ubuntu 20/22) - this improves performance
@@ -37,7 +37,7 @@ OE_SUPERADMIN="admin"
 GENERATE_RANDOM_PASSWORD="True"
 OE_CONFIG="${OE_USER}-server"
 # Set the website name
-WEBSITE_NAME="calidadsg.tohsoluciones.com"
+WEBSITE_NAME="demo17.tohsoluciones.com"
 # Set the default Odoo longpolling port (you still have to use -c /etc/odoo-server.conf for example to use this.)
 LONGPOLLING_PORT="8072"
 # Set to "True" to install certbot and have ssl enabled, "False" to use http
@@ -51,8 +51,17 @@ ADMIN_EMAIL="sergio.rivero@tohsoluciones.com"
 ## https://github.com/odoo/odoo/wiki/Wkhtmltopdf ):
 ## https://www.odoo.com/documentation/16.0/administration/install.html
 
-WKHTMLTOX_X64="https://github.com/wkhtmltopdf/wkhtmltopdf/releases/download/0.12.5/wkhtmltox_0.12.5-1.$(lsb_release -c -s)_amd64.deb"
-WKHTMLTOX_X32="https://github.com/wkhtmltopdf/wkhtmltopdf/releases/download/0.12.5/wkhtmltox_0.12.5-1.$(lsb_release -c -s)_i386.deb"
+# Check if the operating system is Ubuntu 22.04
+if [[ $(lsb_release -r -s) == "22.04" ]]; then
+    WKHTMLTOX_X64="https://packages.ubuntu.com/jammy/wkhtmltopdf"
+    WKHTMLTOX_X32="https://packages.ubuntu.com/jammy/wkhtmltopdf"
+    #No Same link works for both 64 and 32-bit on Ubuntu 22.04
+else
+    # For older versions of Ubuntu
+    WKHTMLTOX_X64="https://github.com/wkhtmltopdf/wkhtmltopdf/releases/download/0.12.5/wkhtmltox_0.12.5-1.$(lsb_release -c -s)_amd64.deb"
+    WKHTMLTOX_X32="https://github.com/wkhtmltopdf/wkhtmltopdf/releases/download/0.12.5/wkhtmltox_0.12.5-1.$(lsb_release -c -s)_i386.deb"
+fi
+
 #--------------------------------------------------
 # Update Server
 #--------------------------------------------------
@@ -74,7 +83,7 @@ if [ $INSTALL_POSTGRESQL_FOURTEEN = "True" ]; then
     sudo curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc|sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/postgresql.gpg
     sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
     sudo apt-get update
-    sudo apt-get install postgresql-14
+    sudo apt-get install postgresql-16
 else
     echo -e "\n---- Installing the default postgreSQL version based on Linux version ----"
     sudo apt-get install postgresql postgresql-server-dev-all -y
@@ -110,7 +119,16 @@ if [ $INSTALL_WKHTMLTOPDF = "True" ]; then
       _url=$WKHTMLTOX_X32
   fi
   sudo wget $_url
-  sudo gdebi --n `basename $_url`
+  
+
+  if [[ $(lsb_release -r -s) == "22.04" ]]; then
+    # Ubuntu 22.04 LTS
+    sudo apt install wkhtmltopdf -y
+  else
+      # For older versions of Ubuntu
+    sudo gdebi --n `basename $_url`
+  fi
+  
   sudo ln -s /usr/local/bin/wkhtmltopdf /usr/bin
   sudo ln -s /usr/local/bin/wkhtmltoimage /usr/bin
 else
@@ -371,13 +389,22 @@ fi
 #--------------------------------------------------
 
 if [ $INSTALL_NGINX = "True" ] && [ $ENABLE_SSL = "True" ] && [ $ADMIN_EMAIL != "odoo@example.com" ]  && [ $WEBSITE_NAME != "_" ];then
-  sudo add-apt-repository ppa:certbot/certbot -y && sudo apt-get update -y
+  sudo apt-get update -y
+  sudo apt install snapd -y
+  sudo snap install core; snap refresh core
+  sudo snap install --classic certbot
   sudo apt-get install python3-certbot-nginx -y
   sudo certbot --nginx -d $WEBSITE_NAME --noninteractive --agree-tos --email $ADMIN_EMAIL --redirect
   sudo service nginx reload
   echo "SSL/HTTPS is enabled!"
 else
   echo "SSL/HTTPS isn't enabled due to choice of the user or because of a misconfiguration!"
+  if $ADMIN_EMAIL = "odoo@example.com";then 
+    echo "Certbot does not support registering odoo@example.com. You should use real e-mail address."
+  fi
+  if $WEBSITE_NAME = "_";then
+    echo "Website name is set as _. Cannot obtain SSL Certificate for _. You should use real website address."
+  fi
 fi
 
 echo -e "* Starting Odoo Service"

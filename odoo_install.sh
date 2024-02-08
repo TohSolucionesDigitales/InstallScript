@@ -1,9 +1,9 @@
 #!/bin/bash
 ################################################################################
-# Script for installing Odoo on Ubuntu 16.04, 18.04 and 20.04 (could be used for other version too)
+# Script for installing Odoo on Ubuntu 16.04, 18.04, 20.04 and 22.04 (could be used for other version too)
 # Author: Yenthe Van Ginneken
 #-------------------------------------------------------------------------------
-# This script will install Odoo on your Ubuntu 16.04 server. It can install multiple Odoo instances
+# This script will install Odoo on your Ubuntu server. It can install multiple Odoo instances
 # in one Ubuntu because of the different xmlrpc_ports
 #-------------------------------------------------------------------------------
 # Make a new file:
@@ -23,7 +23,7 @@ INSTALL_WKHTMLTOPDF="True"
 # Set the default Odoo port (you still have to use -c /etc/odoo-server.conf for example to use this.)
 OE_PORT="8069"
 # Choose the Odoo version which you want to install. For example: 16.0, 15.0, 14.0 or saas-22. When using 'master' the master version will be installed.
-# IMPORTANT! This script contains extra libraries that are specifically needed for Odoo 16.0
+# IMPORTANT! This script contains extra libraries that are specifically needed for Odoo 17.0
 OE_VERSION="17.0"
 # Set this to True if you want to install the Odoo enterprise version!
 IS_ENTERPRISE="False"
@@ -37,11 +37,11 @@ OE_SUPERADMIN="admin"
 GENERATE_RANDOM_PASSWORD="True"
 OE_CONFIG="${OE_USER}-server"
 # Set the website name
-WEBSITE_NAME="demo172.tohsoluciones.com"
+WEBSITE_NAME="odoo.tohsoluciones.com"
 # Set the default Odoo longpolling port (you still have to use -c /etc/odoo-server.conf for example to use this.)
 LONGPOLLING_PORT="8072"
 # Set to "True" to install certbot and have ssl enabled, "False" to use http
-ENABLE_SSL="False"
+ENABLE_SSL="True"
 # Provide Email to register ssl certificate
 ADMIN_EMAIL="sergio.rivero@tohsoluciones.com"
 ##
@@ -68,7 +68,7 @@ fi
 echo -e "\n---- Update Server ----"
 # universe package is for Ubuntu 18.x
 sudo add-apt-repository universe
-# libpng12-0 dependency for wkhtmltopdf
+# libpng12-0 dependency for wkhtmltopdf for older Ubuntu versions
 sudo add-apt-repository "deb http://mirrors.kernel.org/ubuntu/ xenial main"
 sudo apt-get update
 sudo apt-get upgrade -y

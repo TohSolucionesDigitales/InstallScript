@@ -11,7 +11,7 @@ If you set the parameter ```INSTALL_NGINX``` to ```True``` you should also confi
 
 ##### 1. Download the script:
 ```
-sudo wget https://raw.githubusercontent.com/TohSolucionesDigitales/InstallScript/17.0/odoo_install.sh
+sudo wget https://raw.githubusercontent.com/TohSolucionesDigitales/InstallScript/18.0/odoo_install.sh
 ```
 ##### 2. Modify the parameters as you wish.
 There are a few things you can configure, this is the most used list:
@@ -19,8 +19,8 @@ OE_USER will be the username for the system user.
 GENERATE_RANDOM_PASSWORD if this is set to True the script will generate a random password, if set to Falsewe'll set the password that is configured in OE_SUPERADMIN. By default the value is True and the script will generate a random and secure password.
 INSTALL_WKHTMLTOPDF set to False if you do not want to install Wkhtmltopdf, if you want to install it you should set it to True.
 OE_PORT is the port where Odoo should run on, for example 8069.
-OE_VERSION is the Odoo version to install, for example 17.0 for Odoo V17.
-IS_ENTERPRISE will install the Enterprise version on top of 17.0 if you set it to True, set it to False if you want the community version of Odoo 17.
+OE_VERSION is the Odoo version to install, for example 18.0 for Odoo V18.
+IS_ENTERPRISE will install the Enterprise version on top of 18.0 if you set it to True, set it to False if you want the community version of Odoo 18.
 OE_SUPERADMIN is the master password for this Odoo installation.
 INSTALL_NGINX is set to False by default. Set this to True if you want to install Nginx.
 WEBSITE_NAME Set the website name here for nginx configuration

@@ -1,6 +1,6 @@
 #!/bin/bash
 ################################################################################
-# Script for installing Odoo on Ubuntu 16.04, 18.04, 20.04 and 22.04 (could be used for other version too)
+# Script for installing Odoo on Ubuntu 16.04, 18.04, 20.04 and 24.04 (could be used for other version too)
 # Author: Yenthe Van Ginneken
 #-------------------------------------------------------------------------------
 # This script will install Odoo on your Ubuntu server. It can install multiple Odoo instances
@@ -24,11 +24,12 @@ INSTALL_WKHTMLTOPDF="True"
 OE_PORT="8069"
 # Choose the Odoo version which you want to install. For example: 16.0, 15.0, 14.0 or saas-22. When using 'master' the master version will be installed.
 # IMPORTANT! This script contains extra libraries that are specifically needed for Odoo 17.0
-OE_VERSION="17.0"
+OE_VERSION="18.0"
 # Set this to True if you want to install the Odoo enterprise version!
 IS_ENTERPRISE="False"
-# Installs postgreSQL V14 instead of defaults (e.g V12 for Ubuntu 20/22) - this improves performance
-INSTALL_POSTGRESQL_FOURTEEN="True"
+# Installs postgreSQL V16 instead of defaults (e.g V12 for Ubuntu 20/22/24) - this improves performance
+# INSTALL_POSTGRESQL_FOURTEEN="True"
+INSTALL_POSTGRESQL_SIXTEEN="True"
 # Set this to True if you want to install Nginx!
 INSTALL_NGINX="False"
 # Set the superadmin password - if GENERATE_RANDOM_PASSWORD is set to "True" we will automatically generate a random password, otherwise we use this one
@@ -37,7 +38,7 @@ OE_SUPERADMIN="admin"
 GENERATE_RANDOM_PASSWORD="True"
 OE_CONFIG="${OE_USER}-server"
 # Set the website name
-WEBSITE_NAME="odoo17.tohsoluciones.com"
+WEBSITE_NAME="ekotrapp18.tohsoluciones.com"
 # Set the default Odoo longpolling port (you still have to use -c /etc/odoo-server.conf for example to use this.)
 LONGPOLLING_PORT="8072"
 # Set to "True" to install certbot and have ssl enabled, "False" to use http
@@ -51,11 +52,11 @@ ADMIN_EMAIL="sergio.rivero@tohsoluciones.com"
 ## https://github.com/odoo/odoo/wiki/Wkhtmltopdf ):
 ## https://www.odoo.com/documentation/16.0/administration/install.html
 
-# Check if the operating system is Ubuntu 22.04
-if [[ $(lsb_release -r -s) == "22.04" ]]; then
+# Check if the operating system is Ubuntu 24.04
+if [[ $(lsb_release -r -s) == "24.04" ]]; then
     WKHTMLTOX_X64="https://packages.ubuntu.com/jammy/wkhtmltopdf"
     WKHTMLTOX_X32="https://packages.ubuntu.com/jammy/wkhtmltopdf"
-    #No Same link works for both 64 and 32-bit on Ubuntu 22.04
+    #No Same link works for both 64 and 32-bit on Ubuntu 24.04
 else
     # For older versions of Ubuntu
     WKHTMLTOX_X64="https://github.com/wkhtmltopdf/wkhtmltopdf/releases/download/0.12.5/wkhtmltox_0.12.5-1.$(lsb_release -c -s)_amd64.deb"
@@ -77,18 +78,27 @@ sudo apt-get install libpq-dev
 #--------------------------------------------------
 # Install PostgreSQL Server
 #--------------------------------------------------
-echo -e "\n---- Install PostgreSQL Server ----"
-if [ $INSTALL_POSTGRESQL_FOURTEEN = "True" ]; then
-    echo -e "\n---- Installing postgreSQL V14 due to the user it's choise ----"
-    sudo curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc|sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/postgresql.gpg
-    sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
-    sudo apt-get update
-    sudo apt-get install postgresql-16
+
+#echo -e "\n---- Install PostgreSQL Server ----"
+#if [ $INSTALL_POSTGRESQL_FOURTEEN = "True" ]; then
+ #   echo -e "\n---- Installing postgreSQL V14 due to the user it's choise ----"
+  #  sudo curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc|sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/postgresql.gpg
+   # sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+    #sudo apt-get update
+    #sudo apt-get install postgresql-16
+#else
+ #   echo -e "\n---- Installing the default postgreSQL version based on Linux version ----"
+  #  sudo apt-get install postgresql postgresql-server-dev-all -y
+#fi
+
+echo -e "=== Install and configure PostgreSQL ... ==="
+if [ $INSTALL_POSTGRESQL_SIXTEEN = "True" ]; then
+    echo -e "=== Installing postgreSQL V16 due to the user it's choice ... ==="    
+    sudo apt-get install postgresql-16 -y
 else
-    echo -e "\n---- Installing the default postgreSQL version based on Linux version ----"
+    echo -e "=== Installing the default postgreSQL version based on Linux version ... ==="
     sudo apt-get install postgresql postgresql-server-dev-all -y
 fi
-
 
 echo -e "\n---- Creating the ODOO PostgreSQL User  ----"
 sudo su - postgres -c "createuser -s $OE_USER" 2> /dev/null || true
@@ -105,6 +115,8 @@ sudo -H pip3 install -r https://github.com/odoo/odoo/raw/${OE_VERSION}/requireme
 
 echo -e "\n---- Installing nodeJS NPM and rtlcss for LTR support ----"
 sudo apt-get install nodejs npm -y
+sudo ln -s /usr/bin/nodejs /usr/bin/node
+sudo npm install -g less less-plugin-clean-css
 sudo npm install -g rtlcss
 
 #--------------------------------------------------
@@ -121,8 +133,8 @@ if [ $INSTALL_WKHTMLTOPDF = "True" ]; then
   sudo wget $_url
   
 
-  if [[ $(lsb_release -r -s) == "22.04" ]]; then
-    # Ubuntu 22.04 LTS
+  if [[ $(lsb_release -r -s) == "24.04" ]]; then
+    # Ubuntu 24.04 LTS
     sudo apt install wkhtmltopdf -y
   else
       # For older versions of Ubuntu

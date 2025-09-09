@@ -100,10 +100,32 @@ sudo npm install -g less less-plugin-clean-css rtlcss
 
 echo -e "\n---- Install python packages/requirements ----"
 # Install pip packages with break-system-packages flag for Debian 12
+echo "Installing Odoo requirements..."
 sudo pip3 install --break-system-packages -r https://github.com/odoo/odoo/raw/${OE_VERSION}/requirements.txt
 
 # Additional packages that might be needed
+echo "Installing additional Python packages..."
 sudo pip3 install --break-system-packages psycopg2-binary
+
+# Fix python-ldap installation if it failed
+echo "Checking python-ldap installation..."
+python3 -c "import ldap" 2>/dev/null
+if [ $? -ne 0 ]; then
+    echo "python-ldap not found, installing manually..."
+    sudo pip3 install --break-system-packages python-ldap
+    
+    # If still fails, try specific version
+    if [ $? -ne 0 ]; then
+        echo "Trying specific version of python-ldap..."
+        sudo pip3 install --break-system-packages python-ldap==3.4.0
+        
+        # Last resort: use system package
+        if [ $? -ne 0 ]; then
+            echo "Installing python-ldap from Debian repositories..."
+            sudo apt-get install python3-ldap -y
+        fi
+    fi
+fi
 
 #--------------------------------------------------
 # Install Wkhtmltopdf if needed

@@ -87,7 +87,7 @@ echo -e "\n--- Installing Python 3 + pip3 ---"
 sudo apt-get install python3 python3-pip python3-dev python3-venv python3-wheel python3-setuptools -y
 
 echo -e "\n--- Installing build dependencies ---"
-sudo apt-get install git build-essential wget libxslt1-dev libzip-dev libldap2-dev libsasl2-dev \
+sudo apt-get install git build-essential wget curl libxslt1-dev libzip-dev libldap2-dev libsasl2-dev \
     libssl-dev libffi-dev libmysqlclient-dev libjpeg-dev libpng-dev libjpeg62-turbo-dev \
     zlib1g-dev libfreetype6-dev liblcms2-dev libwebp-dev tcl8.6-dev tk8.6-dev python3-tk \
     libharfbuzz-dev libfribidi-dev libxcb1-dev pkg-config -y

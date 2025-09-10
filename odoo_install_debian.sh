@@ -379,7 +379,76 @@ echo -e "* Starting Odoo Service"
 sudo systemctl start ${OE_CONFIG}.service
 
 echo "-----------------------------------------------------------"
-echo "Done! The Odoo server is up and running. Specifications:"
+echo "🎉 INSTALLATION VERIFICATION 🎉"
+echo "-----------------------------------------------------------"
+
+# Verify critical components
+echo "Verifying installation components:"
+
+echo -n "✓ Git: "
+if command -v git &> /dev/null; then
+    echo "$(git --version)"
+else
+    echo "❌ NOT FOUND"
+fi
+
+echo -n "✓ PostgreSQL: "
+if command -v psql &> /dev/null; then
+    echo "$(sudo -u postgres psql --version)"
+else
+    echo "❌ NOT FOUND"
+fi
+
+echo -n "✓ Python: "
+if command -v python3 &> /dev/null; then
+    echo "$(python3 --version)"
+else
+    echo "❌ NOT FOUND"
+fi
+
+echo -n "✓ Node.js: "
+if command -v node &> /dev/null; then
+    echo "$(node --version)"
+else
+    echo "❌ NOT FOUND"
+fi
+
+echo -n "✓ Odoo binary: "
+if [ -f "$OE_HOME_EXT/odoo-bin" ]; then
+    echo "EXISTS at $OE_HOME_EXT/odoo-bin"
+else
+    echo "❌ NOT FOUND at $OE_HOME_EXT/odoo-bin"
+fi
+
+echo -n "✓ Odoo config: "
+if [ -f "/etc/${OE_CONFIG}.conf" ]; then
+    echo "EXISTS at /etc/${OE_CONFIG}.conf"
+else
+    echo "❌ NOT FOUND"
+fi
+
+echo -n "✓ Odoo service: "
+if sudo systemctl is-enabled ${OE_CONFIG}.service &> /dev/null; then
+    if sudo systemctl is-active --quiet ${OE_CONFIG}.service; then
+        echo "ENABLED and RUNNING"
+    else
+        echo "ENABLED but NOT RUNNING"
+    fi
+else
+    echo "❌ NOT ENABLED"
+fi
+
+echo -n "✓ Odoo addons: "
+if [ -d "$OE_HOME_EXT/addons" ]; then
+    addon_count=$(ls -1 "$OE_HOME_EXT/addons" | wc -l)
+    echo "$addon_count modules found"
+else
+    echo "❌ ADDONS DIRECTORY NOT FOUND"
+fi
+
+echo "-----------------------------------------------------------"
+echo "📋 INSTALLATION SUMMARY 📋"
+echo "-----------------------------------------------------------"
 echo "Port: $OE_PORT"
 echo "User service: $OE_USER"
 echo "Configuration file location: /etc/${OE_CONFIG}.conf"
@@ -387,12 +456,23 @@ echo "Logfile location: /var/log/$OE_USER"
 echo "User PostgreSQL: $OE_USER"
 echo "Code location: $OE_HOME_EXT"
 echo "Addons folder: $OE_HOME_EXT/addons/"
+echo "Custom addons folder: $OE_HOME/custom/addons/"
 echo "Password superadmin (database): $OE_SUPERADMIN"
+echo ""
+echo "🚀 SERVICE COMMANDS:"
 echo "Start Odoo service: sudo systemctl start $OE_CONFIG"
 echo "Stop Odoo service: sudo systemctl stop $OE_CONFIG"
 echo "Restart Odoo service: sudo systemctl restart $OE_CONFIG"
 echo "View Odoo service status: sudo systemctl status $OE_CONFIG"
+echo "View Odoo logs: sudo journalctl -u $OE_CONFIG -f"
+echo ""
 if [ $INSTALL_NGINX = "True" ]; then
+    echo "🌐 NGINX:"
     echo "Nginx configuration file: /etc/nginx/sites-available/$WEBSITE_NAME"
+    echo "Website: http://$WEBSITE_NAME"
 fi
+echo ""
+echo "🌐 ACCESS:"
+echo "Odoo is accessible at: http://localhost:$OE_PORT"
+echo "Database management: http://localhost:$OE_PORT/web/database/manager"
 echo "-----------------------------------------------------------"

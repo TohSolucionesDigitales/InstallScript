@@ -1,6 +1,6 @@
 #!/bin/bash
 ################################################################################
-# Script for installing Odoo on Debian 12 (Bookworm)
+# Script for installing Odoo on Debian 12 (Bookworm) - REVISED VERSION
 # Adapted from Ubuntu script by Yenthe Van Ginneken
 #-------------------------------------------------------------------------------
 # This script will install Odoo on your Debian server. It can install multiple Odoo instances
@@ -51,65 +51,133 @@ ADMIN_EMAIL="sergio.rivero@tohsoluciones.com"
 WKHTMLTOX_X64="https://github.com/wkhtmltopdf/wkhtmltopdf/releases/download/0.12.6-1/wkhtmltox_0.12.6-1.bullseye_amd64.deb"
 WKHTMLTOX_X32="https://github.com/wkhtmltopdf/wkhtmltopdf/releases/download/0.12.6-1/wkhtmltox_0.12.6-1.bullseye_i386.deb"
 
+echo "🚀 INICIANDO INSTALACIÓN DE ODOO ${OE_VERSION} EN DEBIAN 12"
+echo "============================================================"
+
 #--------------------------------------------------
 # Update Server
 #--------------------------------------------------
-echo -e "\n---- Update Server ----"
+echo -e "\n---- Paso 1: Actualizando sistema ----"
 sudo apt-get update
 sudo apt-get upgrade -y
 
-# Install curl and gnupg for repository management
-sudo apt-get install curl gnupg2 wget lsb-release ca-certificates apt-transport-https -y
+# Install essential tools FIRST and keep them
+echo -e "\n---- Paso 2: Instalando herramientas esenciales ----"
+sudo apt-get install -y \
+    curl \
+    gnupg2 \
+    wget \
+    lsb-release \
+    ca-certificates \
+    apt-transport-https \
+    unzip \
+    software-properties-common
+
+#--------------------------------------------------
+# Install and LOCK Git (CRITICAL - must persist)
+#--------------------------------------------------
+echo -e "\n---- Paso 3: Instalando y asegurando Git ----"
+
+# Remove any conflicting packages first
+sudo apt-get autoremove -y
+
+# Install git with dependencies
+sudo apt-get install -y git git-man liberror-perl
+
+# Mark git and its dependencies as manually installed (prevents auto-removal)
+sudo apt-mark manual git git-man liberror-perl
+
+# Verify git installation
+if command -v git &> /dev/null; then
+    echo "✅ Git instalado correctamente: $(git --version)"
+    # Double-lock git to prevent removal
+    echo "git hold" | sudo dpkg --set-selections
+else
+    echo "❌ CRÍTICO: Git no se pudo instalar"
+    exit 1
+fi
 
 #--------------------------------------------------
 # Install PostgreSQL Server
 #--------------------------------------------------
-echo -e "=== Install and configure PostgreSQL ... ==="
+echo -e "\n---- Paso 4: Instalando PostgreSQL ----"
 if [ $INSTALL_POSTGRESQL_SIXTEEN = "True" ]; then
-    echo -e "=== Installing postgreSQL V16 due to the user's choice ... ==="
+    echo "Instalando PostgreSQL 16..."
     # Add PostgreSQL official APT repository for Debian 12
     sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
     wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
     sudo apt-get update
     sudo apt-get install postgresql-16 postgresql-server-dev-16 -y
 else
-    echo -e "=== Installing the default postgreSQL version based on Debian version ... ==="
+    echo "Instalando PostgreSQL por defecto..."
     sudo apt-get install postgresql postgresql-server-dev-all -y
 fi
 
-echo -e "\n---- Creating the ODOO PostgreSQL User  ----"
+echo "Creando usuario PostgreSQL para Odoo..."
 sudo su - postgres -c "createuser -s $OE_USER" 2> /dev/null || true
 
 #--------------------------------------------------
-# Install Dependencies
+# Install Python and dependencies
 #--------------------------------------------------
-echo -e "\n--- Installing Python 3 + pip3 ---"
-sudo apt-get install python3 python3-pip python3-dev python3-venv python3-wheel python3-setuptools -y
+echo -e "\n---- Paso 5: Instalando Python y dependencias ----"
+sudo apt-get install -y \
+    python3 \
+    python3-pip \
+    python3-dev \
+    python3-venv \
+    python3-wheel \
+    python3-setuptools \
+    python3-ldap
 
-echo -e "\n--- Installing build dependencies ---"
-sudo apt-get install git build-essential wget curl libxslt1-dev libzip-dev libldap2-dev libsasl2-dev \
-    libssl-dev libffi-dev libmysqlclient-dev libjpeg-dev libpng-dev libjpeg62-turbo-dev \
-    zlib1g-dev libfreetype6-dev liblcms2-dev libwebp-dev tcl8.6-dev tk8.6-dev python3-tk \
-    libharfbuzz-dev libfribidi-dev libxcb1-dev pkg-config -y
+echo -e "\n---- Paso 6: Instalando dependencias de compilación ----"
+sudo apt-get install -y \
+    build-essential \
+    libxslt1-dev \
+    libzip-dev \
+    libldap2-dev \
+    libsasl2-dev \
+    libssl-dev \
+    libffi-dev \
+    libmysqlclient-dev \
+    libjpeg-dev \
+    libpng-dev \
+    libjpeg62-turbo-dev \
+    zlib1g-dev \
+    libfreetype6-dev \
+    liblcms2-dev \
+    libwebp-dev \
+    tcl8.6-dev \
+    tk8.6-dev \
+    python3-tk \
+    libharfbuzz-dev \
+    libfribidi-dev \
+    libxcb1-dev \
+    pkg-config
+
+echo "Instalando dependencias adicionales de LDAP..."
+sudo apt-get install -y libldap-2.5-0 libldap-common libsasl2-2 libsasl2-modules libsasl2-modules-db
 
 # Install Node.js and npm (Debian 12 compatible)
-echo -e "\n---- Installing nodeJS NPM and rtlcss for LTR support ----"
+echo -e "\n---- Paso 7: Instalando Node.js ----"
 curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 sudo apt-get install nodejs -y
 sudo npm install -g less less-plugin-clean-css rtlcss
 
-echo -e "\n---- Install python packages/requirements ----"
+#--------------------------------------------------
+# Install Python packages
+#--------------------------------------------------
+echo -e "\n---- Paso 8: Instalando paquetes de Python ----"
 
 # Install python3-ldap from system packages FIRST to avoid compilation issues
-echo "Installing python-ldap from system packages to avoid compilation errors..."
+echo "Instalando python-ldap desde repositorios del sistema..."
 sudo apt-get install python3-ldap -y
 
-# Additional packages that might be needed
-echo "Installing additional Python packages..."
+# Install psycopg2-binary
+echo "Instalando psycopg2-binary..."
 sudo pip3 install --break-system-packages psycopg2-binary
 
 # Download and modify requirements.txt to exclude python-ldap
-echo "Preparing Odoo requirements (excluding python-ldap)..."
+echo "Preparando requirements de Odoo (excluyendo python-ldap)..."
 cd /tmp
 wget -q https://github.com/odoo/odoo/raw/${OE_VERSION}/requirements.txt -O requirements_original.txt
 
@@ -117,32 +185,32 @@ wget -q https://github.com/odoo/odoo/raw/${OE_VERSION}/requirements.txt -O requi
 grep -v "python-ldap" requirements_original.txt > requirements_modified.txt
 
 # Install modified requirements
-echo "Installing Odoo requirements (python-ldap excluded)..."
+echo "Instalando requirements de Odoo (python-ldap excluido)..."
 sudo pip3 install --break-system-packages -r requirements_modified.txt
 
 # Cleanup
 rm -f requirements_original.txt requirements_modified.txt
 
 # Verify python-ldap works
-echo "Verifying python-ldap installation..."
-python3 -c "import ldap; print('✓ python-ldap installed successfully from system packages')" 2>/dev/null
+echo "Verificando instalación de python-ldap..."
+python3 -c "import ldap; print('✓ python-ldap instalado correctamente desde paquetes del sistema')" 2>/dev/null
 if [ $? -ne 0 ]; then
-    echo "⚠️ Warning: python-ldap verification failed, but installation will continue"
-    echo "LDAP authentication may not work properly"
+    echo "⚠️ Advertencia: verificación de python-ldap falló, pero la instalación continuará"
+    echo "La autenticación LDAP puede no funcionar correctamente"
 fi
 
 #--------------------------------------------------
 # Install Wkhtmltopdf if needed
 #--------------------------------------------------
 if [ $INSTALL_WKHTMLTOPDF = "True" ]; then
-    echo -e "\n---- Install wkhtml and place shortcuts on correct place for ODOO ----"
+    echo -e "\n---- Paso 9: Instalando wkhtmltopdf ----"
     
     # Try to install from Debian repositories first
     sudo apt-get install wkhtmltopdf -y
     
     # If the above doesn't work, install from GitHub releases
     if ! command -v wkhtmltopdf &> /dev/null; then
-        echo -e "---- Installing wkhtmltopdf from GitHub releases ----"
+        echo "Instalando wkhtmltopdf desde GitHub..."
         #pick up correct one from x64 & x32 versions:
         if [ "`getconf LONG_BIT`" == "64" ];then
             _url=$WKHTMLTOX_X64
@@ -163,27 +231,130 @@ if [ $INSTALL_WKHTMLTOPDF = "True" ]; then
         fi
     fi
 else
-    echo "Wkhtmltopdf isn't installed due to the choice of the user!"
+    echo "wkhtmltopdf no se instalará por elección del usuario"
 fi
 
-echo -e "\n---- Create ODOO system user ----"
-sudo adduser --system --quiet --shell=/bin/bash --home=$OE_HOME --gecos 'ODOO' --group $OE_USER
-#The user should also be added to the sudo'ers group.
-sudo adduser $OE_USER sudo
+echo -e "\n---- Paso 10: Creando usuario del sistema Odoo ----"
+if ! id "$OE_USER" &>/dev/null; then
+    sudo adduser --system --quiet --shell=/bin/bash --home=$OE_HOME --gecos 'ODOO' --group $OE_USER
+    sudo adduser $OE_USER sudo
+else
+    echo "Usuario $OE_USER ya existe"
+fi
 
-echo -e "\n---- Create Log directory ----"
-sudo mkdir /var/log/$OE_USER
+echo "Creando directorio de logs..."
+sudo mkdir -p /var/log/$OE_USER
 sudo chown $OE_USER:$OE_USER /var/log/$OE_USER
 
 #--------------------------------------------------
-# Install ODOO
+# Install ODOO - CRITICAL SECTION
 #--------------------------------------------------
-echo -e "\n==== Installing ODOO Server ===="
-sudo git clone --depth 1 --branch $OE_VERSION https://www.github.com/odoo/odoo $OE_HOME_EXT/
+echo -e "\n==== Paso 11: Instalando servidor Odoo ===="
 
+# VERIFY GIT IS STILL AVAILABLE
+echo "Verificando que Git sigue disponible..."
+if ! command -v git &> /dev/null; then
+    echo "❌ CRÍTICO: Git desapareció durante la instalación"
+    echo "Reinstalando Git urgentemente..."
+    sudo apt-get install git -y
+    sudo apt-mark manual git
+    echo "git hold" | sudo dpkg --set-selections
+    
+    if ! command -v git &> /dev/null; then
+        echo "❌ FATAL: No se puede recuperar Git"
+        exit 1
+    fi
+fi
+
+echo "✅ Git confirmado: $(git --version)"
+
+# Create directories
+sudo mkdir -p $OE_HOME_EXT
+sudo mkdir -p $OE_HOME/custom/addons
+
+# Remove any existing content in the directory
+if [ -d "$OE_HOME_EXT" ] && [ "$(ls -A $OE_HOME_EXT 2>/dev/null)" ]; then
+    echo "Limpiando directorio existente $OE_HOME_EXT..."
+    sudo rm -rf $OE_HOME_EXT/*
+    sudo rm -rf $OE_HOME_EXT/.git* 2>/dev/null || true
+fi
+
+echo "Iniciando proceso de clonado de Odoo..."
+echo "Directorio destino: $OE_HOME_EXT"
+echo "Versión: $OE_VERSION"
+
+# Try multiple methods to get Odoo
+clone_success=false
+
+# Method 1: Direct git clone
+echo "Método 1: Clone directo con git..."
+if sudo git clone --depth 1 --branch $OE_VERSION https://github.com/odoo/odoo.git $OE_HOME_EXT/; then
+    echo "✅ Clonado exitoso con git"
+    clone_success=true
+else
+    echo "❌ Clone directo falló"
+    
+    # Method 2: Clone to temp directory then move
+    echo "Método 2: Clone a directorio temporal..."
+    sudo rm -rf $OE_HOME_EXT/* 2>/dev/null || true
+    cd /tmp
+    sudo rm -rf odoo-clone 2>/dev/null || true
+    
+    if sudo git clone --depth 1 --branch $OE_VERSION https://github.com/odoo/odoo.git odoo-clone; then
+        echo "Moviendo archivos desde directorio temporal..."
+        sudo mv odoo-clone/* $OE_HOME_EXT/
+        sudo mv odoo-clone/.git* $OE_HOME_EXT/ 2>/dev/null || true
+        sudo rm -rf odoo-clone
+        echo "✅ Clonado exitoso con método temporal"
+        clone_success=true
+    else
+        echo "❌ Clone temporal también falló"
+        
+        # Method 3: Download ZIP
+        echo "Método 3: Descarga ZIP..."
+        cd /tmp
+        sudo rm -f odoo.zip 2>/dev/null || true
+        sudo rm -rf odoo-$OE_VERSION 2>/dev/null || true
+        
+        if wget -q https://github.com/odoo/odoo/archive/refs/heads/$OE_VERSION.zip -O odoo.zip; then
+            if unzip -q odoo.zip; then
+                sudo mv odoo-$OE_VERSION/* $OE_HOME_EXT/
+                sudo rm -rf odoo-$OE_VERSION odoo.zip
+                echo "✅ Descarga ZIP exitosa"
+                clone_success=true
+            else
+                echo "❌ Fallo al descomprimir ZIP"
+            fi
+        else
+            echo "❌ Fallo al descargar ZIP"
+        fi
+    fi
+fi
+
+# Verify clone was successful
+if [ "$clone_success" = true ] && [ -f "$OE_HOME_EXT/odoo-bin" ]; then
+    echo "✅ Odoo instalado exitosamente: odoo-bin encontrado en $OE_HOME_EXT/odoo-bin"
+else
+    echo "❌ CRÍTICO: Instalación de Odoo falló completamente"
+    echo "Contenido del directorio $OE_HOME_EXT:"
+    ls -la $OE_HOME_EXT/ 2>/dev/null || echo "Directorio vacío o inexistente"
+    exit 1
+fi
+
+# Verify addons directory
+if [ ! -d "$OE_HOME_EXT/addons" ]; then
+    echo "❌ CRÍTICO: Directorio de addons no encontrado"
+    exit 1
+else
+    addon_count=$(ls -1 "$OE_HOME_EXT/addons" | wc -l)
+    echo "✅ Directorio de addons encontrado con $addon_count módulos"
+fi
+
+#--------------------------------------------------
+# Enterprise installation (if requested)
+#--------------------------------------------------
 if [ $IS_ENTERPRISE = "True" ]; then
-    # Odoo Enterprise install!
-    echo -e "\n--- Installing Enterprise version"
+    echo -e "\n---- Instalando versión Enterprise ----"
     sudo su $OE_USER -c "mkdir -p $OE_HOME/enterprise"
     sudo su $OE_USER -c "mkdir -p $OE_HOME/enterprise/addons"
 
@@ -198,31 +369,31 @@ if [ $IS_ENTERPRISE = "True" ]; then
         GITHUB_RESPONSE=$(sudo git clone --depth 1 --branch $OE_VERSION https://www.github.com/odoo/enterprise "$OE_HOME/enterprise/addons" 2>&1)
     done
 
-    echo -e "\n---- Added Enterprise code under $OE_HOME/enterprise/addons ----"
-    echo -e "\n---- Installing Enterprise specific libraries ----"
+    echo "✅ Código Enterprise agregado bajo $OE_HOME/enterprise/addons"
+    echo "Instalando librerías específicas de Enterprise..."
     sudo pip3 install --break-system-packages num2words ofxparse dbfread ebaysdk firebase_admin pyOpenSSL
 fi
 
-echo -e "\n---- Create custom module directory ----"
-sudo su $OE_USER -c "mkdir -p $OE_HOME/custom"
-sudo su $OE_USER -c "mkdir -p $OE_HOME/custom/addons"
-
-echo -e "\n---- Setting permissions on home folder ----"
+echo -e "\n---- Paso 12: Configurando permisos ----"
 sudo chown -R $OE_USER:$OE_USER $OE_HOME/*
+sudo chmod +x $OE_HOME_EXT/odoo-bin
 
-echo -e "* Create server config file"
+echo -e "\n---- Paso 13: Creando archivo de configuración ----"
 sudo touch /etc/${OE_CONFIG}.conf
-echo -e "* Creating server config file"
-sudo su root -c "printf '[options] \n; This is the password that allows database operations:\n' >> /etc/${OE_CONFIG}.conf"
+echo "Creando archivo de configuración del servidor..."
 
 if [ $GENERATE_RANDOM_PASSWORD = "True" ]; then
-    echo -e "* Generating random admin password"
+    echo "Generando contraseña aleatoria de admin..."
     OE_SUPERADMIN=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)
 fi
 
-sudo su root -c "printf 'admin_passwd = ${OE_SUPERADMIN}\n' >> /etc/${OE_CONFIG}.conf"
-sudo su root -c "printf 'http_port = ${OE_PORT}\n' >> /etc/${OE_CONFIG}.conf"
-sudo su root -c "printf 'logfile = /var/log/${OE_USER}/${OE_CONFIG}.log\n' >> /etc/${OE_CONFIG}.conf"
+sudo tee /etc/${OE_CONFIG}.conf > /dev/null <<EOF
+[options] 
+; This is the password that allows database operations:
+admin_passwd = ${OE_SUPERADMIN}
+http_port = ${OE_PORT}
+logfile = /var/log/${OE_USER}/${OE_CONFIG}.log
+EOF
 
 if [ $IS_ENTERPRISE = "True" ]; then
     sudo su root -c "printf 'addons_path=${OE_HOME}/enterprise/addons,${OE_HOME_EXT}/addons\n' >> /etc/${OE_CONFIG}.conf"
@@ -233,15 +404,17 @@ fi
 sudo chown $OE_USER:$OE_USER /etc/${OE_CONFIG}.conf
 sudo chmod 640 /etc/${OE_CONFIG}.conf
 
-echo -e "* Create startup file"
-sudo su root -c "echo '#!/bin/sh' >> $OE_HOME_EXT/start.sh"
-sudo su root -c "echo 'sudo -u $OE_USER $OE_HOME_EXT/odoo-bin --config=/etc/${OE_CONFIG}.conf' >> $OE_HOME_EXT/start.sh"
+echo "Creando script de inicio..."
+sudo tee $OE_HOME_EXT/start.sh > /dev/null <<EOF
+#!/bin/sh
+sudo -u $OE_USER $OE_HOME_EXT/odoo-bin --config=/etc/${OE_CONFIG}.conf
+EOF
 sudo chmod 755 $OE_HOME_EXT/start.sh
 
 #--------------------------------------------------
-# Create systemd service file (recommended for Debian 12)
+# Create systemd service file
 #--------------------------------------------------
-echo -e "* Create systemd service file"
+echo -e "\n---- Paso 14: Creando servicio systemd ----"
 sudo tee /etc/systemd/system/${OE_CONFIG}.service > /dev/null <<EOF
 [Unit]
 Description=Odoo${OE_VERSION}
@@ -256,12 +429,12 @@ User=${OE_USER}
 Group=${OE_USER}
 ExecStart=${OE_HOME_EXT}/odoo-bin -c /etc/${OE_CONFIG}.conf
 StandardOutput=journal+console
+Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-echo -e "* Enable and start Odoo service"
 sudo systemctl daemon-reload
 sudo systemctl enable ${OE_CONFIG}.service
 
@@ -269,7 +442,7 @@ sudo systemctl enable ${OE_CONFIG}.service
 # Install Nginx if needed
 #--------------------------------------------------
 if [ $INSTALL_NGINX = "True" ]; then
-    echo -e "\n---- Installing and setting up Nginx ----"
+    echo -e "\n---- Paso 15: Instalando y configurando Nginx ----"
     sudo apt install nginx -y
     
     sudo tee /etc/nginx/sites-available/$WEBSITE_NAME > /dev/null <<EOF
@@ -347,16 +520,16 @@ EOF
     sudo rm -f /etc/nginx/sites-enabled/default
     sudo systemctl reload nginx
     sudo su root -c "printf 'proxy_mode = True\n' >> /etc/${OE_CONFIG}.conf"
-    echo "Done! The Nginx server is up and running. Configuration can be found at /etc/nginx/sites-available/$WEBSITE_NAME"
+    echo "✅ Nginx configurado. Archivo: /etc/nginx/sites-available/$WEBSITE_NAME"
 else
-    echo "Nginx isn't installed due to choice of the user!"
+    echo "Nginx no se instalará por elección del usuario"
 fi
 
 #--------------------------------------------------
 # Enable ssl with certbot
 #--------------------------------------------------
 if [ $INSTALL_NGINX = "True" ] && [ $ENABLE_SSL = "True" ] && [ $ADMIN_EMAIL != "odoo@example.com" ] && [ $WEBSITE_NAME != "_" ]; then
-    echo -e "\n---- Installing SSL certificate with Certbot ----"
+    echo -e "\n---- Instalando certificado SSL con Certbot ----"
     sudo apt-get update -y
     sudo apt-get install snapd -y
     sudo snap install core; sudo snap refresh core
@@ -364,115 +537,136 @@ if [ $INSTALL_NGINX = "True" ] && [ $ENABLE_SSL = "True" ] && [ $ADMIN_EMAIL != 
     sudo ln -s /snap/bin/certbot /usr/bin/certbot
     sudo certbot --nginx -d $WEBSITE_NAME --noninteractive --agree-tos --email $ADMIN_EMAIL --redirect
     sudo systemctl reload nginx
-    echo "SSL/HTTPS is enabled!"
+    echo "✅ SSL/HTTPS habilitado!"
 else
-    echo "SSL/HTTPS isn't enabled due to choice of the user or because of a misconfiguration!"
+    echo "SSL/HTTPS no se habilitará por configuración del usuario"
     if [ "$ADMIN_EMAIL" = "odoo@example.com" ]; then 
-        echo "Certbot does not support registering odoo@example.com. You should use real e-mail address."
+        echo "Certbot no soporta registrar odoo@example.com. Debes usar un email real."
     fi
     if [ "$WEBSITE_NAME" = "_" ]; then
-        echo "Website name is set as _. Cannot obtain SSL Certificate for _. You should use real website address."
+        echo "El nombre del sitio web está como '_'. No se puede obtener certificado SSL para '_'."
     fi
 fi
 
-echo -e "* Starting Odoo Service"
+echo -e "\n---- Paso 16: Iniciando servicio Odoo ----"
 sudo systemctl start ${OE_CONFIG}.service
 
+sleep 5
+
 echo "-----------------------------------------------------------"
-echo "🎉 INSTALLATION VERIFICATION 🎉"
+echo "🎉 VERIFICACIÓN DE INSTALACIÓN 🎉"
 echo "-----------------------------------------------------------"
 
 # Verify critical components
-echo "Verifying installation components:"
+echo "Verificando componentes de la instalación:"
+
+verification_failed=false
 
 echo -n "✓ Git: "
 if command -v git &> /dev/null; then
-    echo "$(git --version)"
+    echo "✅ $(git --version)"
 else
     echo "❌ NOT FOUND"
+    verification_failed=true
 fi
 
 echo -n "✓ PostgreSQL: "
 if command -v psql &> /dev/null; then
-    echo "$(sudo -u postgres psql --version)"
+    echo "✅ $(sudo -u postgres psql --version)"
 else
     echo "❌ NOT FOUND"
+    verification_failed=true
 fi
 
 echo -n "✓ Python: "
 if command -v python3 &> /dev/null; then
-    echo "$(python3 --version)"
+    echo "✅ $(python3 --version)"
 else
     echo "❌ NOT FOUND"
+    verification_failed=true
 fi
 
 echo -n "✓ Node.js: "
 if command -v node &> /dev/null; then
-    echo "$(node --version)"
+    echo "✅ $(node --version)"
 else
     echo "❌ NOT FOUND"
+    verification_failed=true
 fi
 
 echo -n "✓ Odoo binary: "
 if [ -f "$OE_HOME_EXT/odoo-bin" ]; then
-    echo "EXISTS at $OE_HOME_EXT/odoo-bin"
+    echo "✅ EXISTS at $OE_HOME_EXT/odoo-bin"
 else
     echo "❌ NOT FOUND at $OE_HOME_EXT/odoo-bin"
+    verification_failed=true
 fi
 
 echo -n "✓ Odoo config: "
 if [ -f "/etc/${OE_CONFIG}.conf" ]; then
-    echo "EXISTS at /etc/${OE_CONFIG}.conf"
+    echo "✅ EXISTS at /etc/${OE_CONFIG}.conf"
 else
     echo "❌ NOT FOUND"
+    verification_failed=true
 fi
 
 echo -n "✓ Odoo service: "
 if sudo systemctl is-enabled ${OE_CONFIG}.service &> /dev/null; then
     if sudo systemctl is-active --quiet ${OE_CONFIG}.service; then
-        echo "ENABLED and RUNNING"
+        echo "✅ ENABLED and RUNNING"
     else
-        echo "ENABLED but NOT RUNNING"
+        echo "⚠️  ENABLED but NOT RUNNING"
+        echo "   Logs: sudo journalctl -u ${OE_CONFIG}.service -n 10"
     fi
 else
     echo "❌ NOT ENABLED"
+    verification_failed=true
 fi
 
 echo -n "✓ Odoo addons: "
 if [ -d "$OE_HOME_EXT/addons" ]; then
     addon_count=$(ls -1 "$OE_HOME_EXT/addons" | wc -l)
-    echo "$addon_count modules found"
+    echo "✅ $addon_count modules found"
 else
     echo "❌ ADDONS DIRECTORY NOT FOUND"
+    verification_failed=true
 fi
 
 echo "-----------------------------------------------------------"
-echo "📋 INSTALLATION SUMMARY 📋"
-echo "-----------------------------------------------------------"
-echo "Port: $OE_PORT"
-echo "User service: $OE_USER"
-echo "Configuration file location: /etc/${OE_CONFIG}.conf"
-echo "Logfile location: /var/log/$OE_USER"
-echo "User PostgreSQL: $OE_USER"
-echo "Code location: $OE_HOME_EXT"
-echo "Addons folder: $OE_HOME_EXT/addons/"
-echo "Custom addons folder: $OE_HOME/custom/addons/"
-echo "Password superadmin (database): $OE_SUPERADMIN"
+if [ "$verification_failed" = false ]; then
+    echo "🎉 ¡INSTALACIÓN COMPLETAMENTE EXITOSA!"
+else
+    echo "⚠️  INSTALACIÓN COMPLETADA CON ALGUNAS ADVERTENCIAS"
+    echo "Revisa los logs para más detalles: sudo journalctl -u ${OE_CONFIG}.service -n 20"
+fi
+
 echo ""
-echo "🚀 SERVICE COMMANDS:"
-echo "Start Odoo service: sudo systemctl start $OE_CONFIG"
-echo "Stop Odoo service: sudo systemctl stop $OE_CONFIG"
-echo "Restart Odoo service: sudo systemctl restart $OE_CONFIG"
-echo "View Odoo service status: sudo systemctl status $OE_CONFIG"
-echo "View Odoo logs: sudo journalctl -u $OE_CONFIG -f"
+echo "📋 RESUMEN DE INSTALACIÓN"
+echo "========================"
+echo "Puerto: $OE_PORT"
+echo "Usuario del servicio: $OE_USER"
+echo "Archivo de configuración: /etc/${OE_CONFIG}.conf"
+echo "Directorio de logs: /var/log/$OE_USER"
+echo "Usuario PostgreSQL: $OE_USER"
+echo "Ubicación del código: $OE_HOME_EXT"
+echo "Carpeta de addons: $OE_HOME_EXT/addons/"
+echo "Carpeta de addons personalizados: $OE_HOME/custom/addons/"
+echo "Contraseña superadmin (base de datos): $OE_SUPERADMIN"
+echo ""
+echo "🚀 COMANDOS DE SERVICIO:"
+echo "Iniciar Odoo: sudo systemctl start $OE_CONFIG"
+echo "Detener Odoo: sudo systemctl stop $OE_CONFIG"
+echo "Reiniciar Odoo: sudo systemctl restart $OE_CONFIG"
+echo "Ver estado: sudo systemctl status $OE_CONFIG"
+echo "Ver logs en tiempo real: sudo journalctl -u $OE_CONFIG -f"
 echo ""
 if [ $INSTALL_NGINX = "True" ]; then
     echo "🌐 NGINX:"
-    echo "Nginx configuration file: /etc/nginx/sites-available/$WEBSITE_NAME"
-    echo "Website: http://$WEBSITE_NAME"
+    echo "Archivo de configuración: /etc/nginx/sites-available/$WEBSITE_NAME"
+    echo "Sitio web: http://$WEBSITE_NAME"
+    echo ""
 fi
-echo ""
-echo "🌐 ACCESS:"
-echo "Odoo is accessible at: http://localhost:$OE_PORT"
-echo "Database management: http://localhost:$OE_PORT/web/database/manager"
+echo "🌐 ACCESO:"
+echo "Odoo está disponible en: http://localhost:$OE_PORT"
+echo "Gestión de base de datos: http://localhost:$OE_PORT/web/database/manager"
 echo "-----------------------------------------------------------"

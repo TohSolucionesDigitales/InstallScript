@@ -99,30 +99,36 @@ sudo apt-get install nodejs -y
 sudo npm install -g less less-plugin-clean-css rtlcss
 
 echo -e "\n---- Install python packages/requirements ----"
-# Install pip packages with break-system-packages flag for Debian 12
-echo "Installing Odoo requirements..."
-sudo pip3 install --break-system-packages -r https://github.com/odoo/odoo/raw/${OE_VERSION}/requirements.txt
+
+# Install python3-ldap from system packages FIRST to avoid compilation issues
+echo "Installing python-ldap from system packages to avoid compilation errors..."
+sudo apt-get install python3-ldap -y
 
 # Additional packages that might be needed
 echo "Installing additional Python packages..."
 sudo pip3 install --break-system-packages psycopg2-binary
 
-# Fix python-ldap installation if it failed
-echo "Installing python-ldap (using system package to avoid compilation issues)..."
-sudo apt-get install python3-ldap -y
+# Download and modify requirements.txt to exclude python-ldap
+echo "Preparing Odoo requirements (excluding python-ldap)..."
+cd /tmp
+wget -q https://github.com/odoo/odoo/raw/${OE_VERSION}/requirements.txt -O requirements_original.txt
+
+# Remove python-ldap from requirements to avoid compilation
+grep -v "python-ldap" requirements_original.txt > requirements_modified.txt
+
+# Install modified requirements
+echo "Installing Odoo requirements (python-ldap excluded)..."
+sudo pip3 install --break-system-packages -r requirements_modified.txt
+
+# Cleanup
+rm -f requirements_original.txt requirements_modified.txt
 
 # Verify python-ldap works
-python3 -c "import ldap; print('✓ python-ldap installed successfully')" 2>/dev/null
+echo "Verifying python-ldap installation..."
+python3 -c "import ldap; print('✓ python-ldap installed successfully from system packages')" 2>/dev/null
 if [ $? -ne 0 ]; then
-    echo "Trying to install python-ldap from pip with proper dependencies..."
-    sudo apt-get install -y libldap2-dev libldap-dev libsasl2-dev
-    sudo pip3 install --break-system-packages python-ldap
-    
-    # If still fails, try specific version
-    if [ $? -ne 0 ]; then
-        echo "Trying specific version of python-ldap..."
-        sudo pip3 install --break-system-packages python-ldap==3.4.0
-    fi
+    echo "⚠️ Warning: python-ldap verification failed, but installation will continue"
+    echo "LDAP authentication may not work properly"
 fi
 
 #--------------------------------------------------

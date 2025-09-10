@@ -108,22 +108,20 @@ echo "Installing additional Python packages..."
 sudo pip3 install --break-system-packages psycopg2-binary
 
 # Fix python-ldap installation if it failed
-echo "Checking python-ldap installation..."
-python3 -c "import ldap" 2>/dev/null
+echo "Installing python-ldap (using system package to avoid compilation issues)..."
+sudo apt-get install python3-ldap -y
+
+# Verify python-ldap works
+python3 -c "import ldap; print('✓ python-ldap installed successfully')" 2>/dev/null
 if [ $? -ne 0 ]; then
-    echo "python-ldap not found, installing manually..."
+    echo "Trying to install python-ldap from pip with proper dependencies..."
+    sudo apt-get install -y libldap2-dev libldap-dev libsasl2-dev
     sudo pip3 install --break-system-packages python-ldap
     
     # If still fails, try specific version
     if [ $? -ne 0 ]; then
         echo "Trying specific version of python-ldap..."
         sudo pip3 install --break-system-packages python-ldap==3.4.0
-        
-        # Last resort: use system package
-        if [ $? -ne 0 ]; then
-            echo "Installing python-ldap from Debian repositories..."
-            sudo apt-get install python3-ldap -y
-        fi
     fi
 fi
 

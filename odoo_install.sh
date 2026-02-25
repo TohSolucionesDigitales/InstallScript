@@ -36,16 +36,16 @@ DB_PASSWORD="$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 20 | head -n 1)"
 # ====== CONFIGURACIÓN DE SISTEMA ======
 INSTALL_WKHTMLTOPDF="True"
 INSTALL_POSTGRESQL_SIXTEEN="True"
-INSTALL_NGINX="False"
+INSTALL_NGINX="True"
 
 # ====== CONFIGURACIÓN DE SEGURIDAD ======
 OE_SUPERADMIN="$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 24 | head -n 1)"
 OE_CONFIG="${OE_USER}"
 
 # ====== CONFIGURACIÓN SSL (si aplica) ======
-ENABLE_SSL="False"
-WEBSITE_NAME="odoo.example.com"
-ADMIN_EMAIL="admin@example.com"
+ENABLE_SSL="True"
+WEBSITE_NAME="casaturquesa.tohsoluciones.com"
+ADMIN_EMAIL="sergio.rivero@tohsoluciones.com"
 
 # ====== CONFIGURACIÓN PARA ALTO VOLUMEN ======
 # Workers: 2 * número_de_cores + 1 (ajustar según servidor)
